@@ -12,12 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { supabase } from "../../services/supabaseClient";
 
-export default function Sidebar({
-  isOpen,
-  closeSidebar,
-  closed,
-  toggleSidebar,
-}) {
+export default function Sidebar({ isOpen, closeSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -57,20 +52,7 @@ export default function Sidebar({
       )}
 
       {/* Desktop Sidebar */}
-      <aside id="sidebar" className={`${closed ? "close" : ""}`}>
-        {/* Toggle Button */}
-        <div className="flex justify-end mb-2">
-          <button
-            id="toggle-btn"
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <FontAwesomeIcon
-              icon={closed ? faChevronLeft : faXmark}
-              className="w-5 h-5 text-gray-600 dark:text-gray-300"
-            />
-          </button>
-        </div>
-
+      <aside id="sidebar">
         {/* Navigation */}
         <ul className="space-y-2">
           {navItems.map((item) => (
@@ -82,7 +64,7 @@ export default function Sidebar({
                   icon={item.icon}
                   className="w-5 h-5 flex-shrink-0"
                 />
-                {!closed && <span className="truncate">{item.label}</span>}
+                {!isOpen && <span className="truncate">{item.label}</span>}
               </Link>
             </li>
           ))}

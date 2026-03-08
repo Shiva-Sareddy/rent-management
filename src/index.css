@@ -22,6 +22,8 @@
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
     font-family:
+      "DM Sans",
+      "Montserrat",
       "Open Sans",
       system-ui,
       -apple-system,
@@ -226,7 +228,7 @@
 #sidebar {
   box-sizing: border-box;
   height: 100vh;
-  width: 250px;
+  width: 200px;
   padding: 16px 12px;
   background-color: white;
   border-right: 1px solid #e5e7eb;
@@ -246,7 +248,7 @@
 
 #sidebar.close {
   padding: 16px 8px;
-  width: 72px;
+  width: 60px;
 }
 
 #sidebar ul {
@@ -261,15 +263,15 @@
 
 #sidebar ul li.active a,
 #sidebar ul li.active .dropdown-btn {
-  background-color: rgb(224 231 255);
-  color: #4f46e5;
+  background-color: rgb(129, 140, 248);
+  color: rgb(55, 48, 163);
   border-radius: 0.5rem;
 }
 
 .dark #sidebar ul li.active a,
 .dark #sidebar ul li.active .dropdown-btn {
-  background-color: rgba(99, 102, 241, 0.2);
-  color: #818cf8;
+  background-color: rgba(129, 140, 248, 0.2);
+  color: rgb(129, 140, 248);
   border-radius: 0.5rem;
 }
 
@@ -472,10 +474,10 @@
   }
 
   .mobile-bottom-nav a.active {
-    color: #4f46e5;
+    color: rgb(55, 48, 163);
   }
 
   .dark .mobile-bottom-nav a.active {
-    color: #818cf8;
+    color: rgb(129, 140, 248);
   }
 }

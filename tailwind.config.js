@@ -12,7 +12,13 @@ export default {
         32: "32px",
       },
       fontFamily: {
-        sans: ['"Open Sans"', "system-ui", "sans-serif"],
+        sans: [
+          '"DM Sans"',
+          '"Montserrat"',
+          '"Open Sans"',
+          "system-ui",
+          "sans-serif",
+        ],
       },
     },
   },

@@ -16,7 +16,7 @@ export default function PaymentTable({ payments }) {
     <div className="glass-card overflow-hidden">
       <div className="overflow-x-auto hide-scrollbar">
         <table className="w-full min-w-[600px]">
-          <thead className="bg-indigo-600 text-white">
+          <thead className="bg-black text-white">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">Month</th>
               <th className="px-4 py-3 text-left text-sm font-medium">

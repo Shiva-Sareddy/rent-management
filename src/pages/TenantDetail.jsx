@@ -5,12 +5,14 @@ import Layout from "../components/layout/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
+import TenantForm from "../components/tenants/TenantForm";
 import { generatePaymentPDF } from "../utils/pdfGenerator";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
   faMinusSquare,
   faPlusSquare,
+  faPencil,
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function TenantDetail() {
@@ -19,6 +21,7 @@ export default function TenantDetail() {
   const [tenant, setTenant] = useState(null);
   const [payments, setPayments] = useState([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [minimizeTenantInfo, setMinimizeTenantInfo] = useState(false);
   const [formData, setFormData] = useState({
     month: "",
@@ -34,7 +37,6 @@ export default function TenantDetail() {
     fetchPayments();
   }, [id]);
 
-  // Auto-populate Expected Date and Amount when month is selected
   useEffect(() => {
     if (formData.month && tenant) {
       const [year, month] = formData.month.split("-");
@@ -117,6 +119,32 @@ export default function TenantDetail() {
     });
   };
 
+  const handleUpdateTenant = async (updatedData) => {
+    const { error } = await supabase
+      .from("tenants")
+      .update({
+        full_name: updatedData.full_name,
+        phone: updatedData.phone,
+        aadhar: updatedData.aadhar,
+        pan: updatedData.pan,
+        house_number: updatedData.house_number,
+        monthly_rent: Math.round(Number(updatedData.monthly_rent)),
+        advance_amount: Math.round(Number(updatedData.advance_amount)) || 0,
+        agreement_start_date: updatedData.agreement_start_date || null,
+        rent_due_day: Math.round(Number(updatedData.rent_due_day)) || 1,
+        family_details: updatedData.family_details,
+      })
+      .eq("id", id);
+
+    if (error) {
+      alert("Update failed: " + error.message);
+      return;
+    }
+
+    fetchTenant();
+    setShowEditForm(false);
+  };
+
   const getStatus = (payment) => {
     if (!payment.paid_date) return "Pending";
     return new Date(payment.paid_date) > new Date(payment.expected_date)
@@ -137,7 +165,6 @@ export default function TenantDetail() {
       </Layout>
     );
 
-  // Tenant info rows
   const tenantInfo = [
     { label: "Name", value: tenant.full_name },
     { label: "House No", value: tenant.house_number },
@@ -165,7 +192,7 @@ export default function TenantDetail() {
           href={tenant.aadhar_file_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-indigo-600 hover:text-indigo-800 underline">
+          className="text-black hover:text-gray-800 underline">
           View File
         </a>
       ) : (
@@ -180,7 +207,7 @@ export default function TenantDetail() {
           href={tenant.pan_file_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-indigo-600 hover:text-indigo-800 underline">
+          className="text-black hover:text-gray-800 underline">
           View File
         </a>
       ) : (
@@ -192,7 +219,6 @@ export default function TenantDetail() {
   return (
     <Layout>
       <div className="py-14 px-4 sm:px-6 space-y-6">
-        {/* Header with back button */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/tenants")}
@@ -207,7 +233,6 @@ export default function TenantDetail() {
           </h1>
         </div>
 
-        {/* Tenant Information - Card style for mobile, table for desktop */}
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold dark:text-white">
@@ -225,7 +250,6 @@ export default function TenantDetail() {
 
           {!minimizeTenantInfo && (
             <>
-              {/* Desktop - Table style */}
               <div className="hidden sm:block overflow-x-auto hide-scrollbar">
                 <table className="w-full">
                   <tbody>
@@ -259,7 +283,6 @@ export default function TenantDetail() {
                 </table>
               </div>
 
-              {/* Mobile - Card style */}
               <div className="sm:hidden space-y-3">
                 {tenantInfo.map((item) => (
                   <div
@@ -289,6 +312,7 @@ export default function TenantDetail() {
         </Card>
 
         <div className="flex flex-row gap-3 justify-center">
+          <Button onClick={() => setShowEditForm(true)}>Edit Tenant</Button>
           <Button onClick={() => setShowPaymentForm(true)}>Add Payment</Button>
           <Button
             onClick={() => generatePaymentPDF(tenant, payments)}
@@ -297,16 +321,14 @@ export default function TenantDetail() {
           </Button>
         </div>
 
-        {/* Payment History - Table design for all screen sizes */}
         <Card>
           <h2 className="text-lg font-bold mb-4 dark:text-white">
             Payment History
           </h2>
 
-          {/* Table - Works on all screen sizes with horizontal scroll */}
           <div className="overflow-x-auto hide-scrollbar">
             <table className="w-full min-w-[600px]">
-              <thead className="bg-indigo-600 text-white">
+              <thead className="bg-black text-white">
                 <tr>
                   <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
                     Month
@@ -490,6 +512,17 @@ export default function TenantDetail() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        <Modal
+          isOpen={showEditForm}
+          onClose={() => setShowEditForm(false)}
+          title="Edit Tenant">
+          <TenantForm
+            tenant={tenant}
+            onSubmit={handleUpdateTenant}
+            onCancel={() => setShowEditForm(false)}
+          />
         </Modal>
       </div>
     </Layout>

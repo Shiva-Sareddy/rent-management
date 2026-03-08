@@ -36,6 +36,7 @@ export default function AddTenant() {
     has_spouse: false,
     has_children: false,
     children_count: 0,
+    rent_due_day: 5,
   });
 
   const totalSteps = 4;
@@ -159,27 +160,34 @@ export default function AddTenant() {
         }
       }
 
-      // Prepare tenant data with file URLs
+      // Prepare tenant data with proper type conversions
       const tenantData = {
         user_id: user.id,
         house_number: formData.house_number,
-        house_location: formData.house_location,
-        monthly_rent: formData.monthly_rent,
-        advance_amount: formData.advance_amount,
-        agreement_start_date: formData.agreement_start_date,
+        house_location: formData.house_location || null,
+        monthly_rent: Math.round(Number(formData.monthly_rent)),
+        advance_amount: formData.advance_amount
+          ? Math.round(Number(formData.advance_amount))
+          : null,
+        agreement_start_date: formData.agreement_start_date || null,
         full_name: formData.full_name,
         phone: formData.phone,
-        aadhar_number: formData.aadhar_number,
-        aadhar_file_url: aadharUrl,
-        pan_number: formData.pan_number,
-        pan_file_url: panUrl,
+        aadhar_number: formData.aadhar_number || null,
+        aadhar_file_url: aadharUrl || null,
+        pan_number: formData.pan_number || null,
+        pan_file_url: panUrl || null,
         has_spouse: formData.has_spouse,
         has_children: formData.has_children,
-        children_count: formData.has_children ? formData.children_count : 0,
-        rent_due_day: 5,
+        children_count: formData.has_children
+          ? Math.round(Number(formData.children_count))
+          : 0,
+        rent_due_day: formData.rent_due_day
+          ? Math.round(Number(formData.rent_due_day))
+          : null,
       };
 
       console.log("Inserting tenant data:", tenantData);
+      console.log("Monthly rent before insert:", tenantData.monthly_rent);
 
       // Save to database
       const { data: insertData, error: insertError } = await supabase
@@ -214,9 +222,9 @@ export default function AddTenant() {
         <div className="max-w-3xl lg:max-w-4xl mx-auto">
           {/* Progress Bar */}
           <div className="mb-10">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-5">
+            <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden mb-5">
               <div
-                className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full transition-all duration-300"
+                className="h-full bg-gradient-to-r from-black to-gray-600 dark:from-green-500 dark:to-green-600 rounded-full transition-all duration-300"
                 style={{
                   width: `${((currentStep - 1) / (totalSteps - 1)) * 100}%`,
                 }}
@@ -226,12 +234,12 @@ export default function AddTenant() {
               {stepLabels.map((label, index) => (
                 <div
                   key={index}
-                  className={`flex flex-col items-center ${index + 1 <= currentStep ? "text-indigo-600 dark:text-indigo-400" : "text-gray-400"}`}>
+                  className={`flex flex-col items-center ${index + 1 <= currentStep ? "text-black dark:text-white" : "text-gray-400 dark:text-gray-500"}`}>
                   <div
-                    className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-base md:text-lg font-bold ${index + 1 < currentStep ? "bg-green-500 text-white" : index + 1 === currentStep ? "bg-indigo-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500"}`}>
+                    className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-base md:text-lg font-bold ${index + 1 < currentStep ? "bg-green-500 text-white" : index + 1 === currentStep ? "bg-black dark:bg-white text-white dark:text-black" : "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300"}`}>
                     {index + 1 < currentStep ? "✓" : index + 1}
                   </div>
-                  <span className="text-xs md:text-sm font-medium hidden sm:block mt-2">
+                  <span className="text-xs md:text-sm font-medium hidden sm:block mt-2 dark:text-gray-400">
                     {label}
                   </span>
                 </div>
@@ -252,10 +260,10 @@ export default function AddTenant() {
             {currentStep === 1 && (
               <div className="space-y-5 pl-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                  <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
                     <FontAwesomeIcon
                       icon={faHome}
-                      className="w-5 h-5 text-indigo-600 dark:text-indigo-400"
+                      className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
                   <h2 className="text-lg font-semibold dark:text-white">
@@ -274,7 +282,7 @@ export default function AddTenant() {
                         updateFormData("house_number", e.target.value)
                       }
                       placeholder="e.g., A-101"
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                     />
                   </div>
                   <div>
@@ -288,7 +296,7 @@ export default function AddTenant() {
                         updateFormData("house_location", e.target.value)
                       }
                       placeholder="e.g., Main Street, City"
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -298,12 +306,14 @@ export default function AddTenant() {
                       </label>
                       <input
                         type="number"
+                        step="1"
+                        min="0"
                         value={formData.monthly_rent}
                         onChange={(e) =>
                           updateFormData("monthly_rent", e.target.value)
                         }
                         placeholder="e.g., 15000"
-                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                       />
                     </div>
                     <div>
@@ -312,27 +322,48 @@ export default function AddTenant() {
                       </label>
                       <input
                         type="number"
+                        step="1"
+                        min="0"
                         value={formData.advance_amount}
                         onChange={(e) =>
                           updateFormData("advance_amount", e.target.value)
                         }
                         placeholder="e.g., 30000"
-                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
-                      Rent Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.agreement_start_date}
-                      onChange={(e) =>
-                        updateFormData("agreement_start_date", e.target.value)
-                      }
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
+                        Rent Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.agreement_start_date}
+                        onChange={(e) =>
+                          updateFormData("agreement_start_date", e.target.value)
+                        }
+                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
+                        Rent Due Day
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        max="31"
+                        value={formData.rent_due_day}
+                        onChange={(e) =>
+                          updateFormData("rent_due_day", e.target.value)
+                        }
+                        placeholder="e.g., 5"
+                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -342,10 +373,10 @@ export default function AddTenant() {
             {currentStep === 2 && (
               <div className="space-y-5 pl-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                  <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
                     <FontAwesomeIcon
                       icon={faUser}
-                      className="w-5 h-5 text-indigo-600 dark:text-indigo-400"
+                      className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
                   <h2 className="text-lg font-semibold dark:text-white">
@@ -364,7 +395,7 @@ export default function AddTenant() {
                         updateFormData("full_name", e.target.value)
                       }
                       placeholder="John Smith"
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                     />
                   </div>
                   <div>
@@ -376,7 +407,7 @@ export default function AddTenant() {
                       value={formData.phone}
                       onChange={(e) => updateFormData("phone", e.target.value)}
                       placeholder="+1 (555) 000-0000"
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                     />
                   </div>
                   <div>
@@ -390,7 +421,7 @@ export default function AddTenant() {
                         updateFormData("aadhar_number", e.target.value)
                       }
                       placeholder="e.g., 1234 5678 9012"
-                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                     />
                   </div>
                   <div>
@@ -404,7 +435,7 @@ export default function AddTenant() {
                         onChange={(e) => handleFileChange(e, "aadhar_file")}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
-                      <div className="flex items-center px-4 py-3 text-base rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:border-indigo-500 cursor-pointer">
+                      <div className="flex items-center px-4 py-3 text-base rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:border-black cursor-pointer">
                         <FontAwesomeIcon
                           icon={faUpload}
                           className="w-5 h-5 text-gray-400 mr-3"
@@ -432,7 +463,7 @@ export default function AddTenant() {
                           updateFormData("pan_number", e.target.value)
                         }
                         placeholder="e.g., ABCDE1234F"
-                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                       />
                     </div>
                     <div>
@@ -449,7 +480,7 @@ export default function AddTenant() {
                           onChange={(e) => handleFileChange(e, "pan_file")}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
-                        <div className="flex items-center px-4 py-3 text-base rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:border-indigo-500 cursor-pointer">
+                        <div className="flex items-center px-4 py-3 text-base rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:border-black cursor-pointer">
                           <FontAwesomeIcon
                             icon={faUpload}
                             className="w-5 h-5 text-gray-400 mr-3"
@@ -471,10 +502,10 @@ export default function AddTenant() {
             {currentStep === 3 && (
               <div className="space-y-5 pl-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                  <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
                     <FontAwesomeIcon
                       icon={faUsers}
-                      className="w-5 h-5 text-indigo-600 dark:text-indigo-400"
+                      className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
                   <h2 className="text-lg font-semibold dark:text-white">
@@ -496,11 +527,11 @@ export default function AddTenant() {
                           }
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-indigo-600 transition-colors cursor-pointer flex items-center px-0.5">
+                        <div className="w-11 h-6 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-black transition-colors cursor-pointer flex items-center px-0.5">
                           <div className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform peer-checked:translate-x-5 flex items-center justify-center">
                             <FontAwesomeIcon
                               icon={faCheck}
-                              className="w-3 h-3 text-indigo-600 opacity-0 peer-checked:opacity-100"
+                              className="w-3 h-3 text-black opacity-0 peer-checked:opacity-100"
                             />
                           </div>
                         </div>
@@ -521,11 +552,11 @@ export default function AddTenant() {
                           }
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-indigo-600 transition-colors cursor-pointer flex items-center px-0.5">
+                        <div className="w-11 h-6 rounded-full bg-gray-200 dark:bg-gray-600 peer-checked:bg-black transition-colors cursor-pointer flex items-center px-0.5">
                           <div className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform peer-checked:translate-x-5 flex items-center justify-center">
                             <FontAwesomeIcon
                               icon={faCheck}
-                              className="w-3 h-3 text-indigo-600 opacity-0 peer-checked:opacity-100"
+                              className="w-3 h-3 text-black opacity-0 peer-checked:opacity-100"
                             />
                           </div>
                         </div>
@@ -619,7 +650,7 @@ export default function AddTenant() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="flex-1 px-6 py-2.5 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                  className="flex-1 px-6 py-2.5 text-sm font-medium rounded-lg bg-black text-white hover:bg-gray-800 dark:bg-black dark:text-white dark:hover:bg-gray-500">
                   Continue
                 </button>
               ) : (
