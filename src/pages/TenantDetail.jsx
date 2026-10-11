@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../services/supabaseClient";
+import { cache } from "../services/dataCache";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import Card from "../components/ui/Card";
@@ -8,12 +9,7 @@ import Modal from "../components/ui/Modal";
 import TenantForm from "../components/tenants/TenantForm";
 import { generatePaymentPDF } from "../utils/pdfGenerator";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faArrowLeft,
-  faMinusSquare,
-  faPlusSquare,
-  faPencil,
-} from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 export default function TenantDetail() {
   const { id } = useParams();
@@ -21,8 +17,8 @@ export default function TenantDetail() {
   const [tenant, setTenant] = useState(null);
   const [payments, setPayments] = useState([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [minimizeTenantInfo, setMinimizeTenantInfo] = useState(false);
   const [formData, setFormData] = useState({
     month: "",
     expected_date: "",
@@ -108,6 +104,7 @@ export default function TenantDetail() {
     }
 
     fetchPayments();
+    cache.invalidate('payments')
     setShowPaymentForm(false);
     setFormData({
       month: "",
@@ -117,6 +114,90 @@ export default function TenantDetail() {
       payment_mode: "Cash",
       remarks: "",
     });
+  };
+
+  const openEditPayment = (payment) => {
+    setEditingPayment(payment);
+    setFormData({
+      month: payment.month ? payment.month.slice(0, 7) : "",
+      expected_date: payment.expected_date,
+      paid_date: payment.paid_date || "",
+      amount: payment.amount || "",
+      payment_mode: payment.payment_mode || "Cash",
+      remarks: payment.remarks || "",
+    });
+    setShowPaymentForm(true);
+  };
+
+  const handleUpdatePayment = async (e) => {
+    e.preventDefault();
+
+    if (!formData.month) {
+      alert("Month is required.");
+      return;
+    }
+    if (!formData.expected_date) {
+      alert("Expected Date is required.");
+      return;
+    }
+    const amount = Number(formData.amount);
+    if (!formData.amount || isNaN(amount) || amount <= 0) {
+      alert("Amount must be a positive number.");
+      return;
+    }
+    if (formData.paid_date && isNaN(new Date(formData.paid_date).getTime())) {
+      alert("Paid Date is not valid.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("rent_payments")
+      .update({
+        month: `${formData.month}-01`,
+        expected_date: formData.expected_date,
+        paid_date: formData.paid_date || null,
+        amount,
+        payment_mode: formData.payment_mode,
+        remarks: formData.remarks,
+      })
+      .eq("id", editingPayment.id);
+
+    if (error) {
+      alert("Update failed: " + error.message);
+      return;
+    }
+
+    fetchPayments();
+    cache.invalidate('payments')
+    setShowPaymentForm(false);
+    setEditingPayment(null);
+    setFormData({
+      month: "",
+      expected_date: "",
+      paid_date: "",
+      amount: "",
+      payment_mode: "Cash",
+      remarks: "",
+    });
+  };
+
+  const handleDeletePayment = async (payment) => {
+    if (!window.confirm("Are you sure you want to delete this payment?")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("rent_payments")
+      .delete()
+      .eq("id", payment.id);
+
+    if (error) {
+      alert("Delete failed: " + error.message);
+      return;
+    }
+
+    fetchPayments();
+    cache.invalidate('payments')
   };
 
   const handleUpdateTenant = async (updatedData) => {
@@ -142,12 +223,15 @@ export default function TenantDetail() {
     }
 
     fetchTenant();
+    cache.invalidate('tenants')
     setShowEditForm(false);
   };
 
   const getStatus = (payment) => {
     if (!payment.paid_date) return "Pending";
-    return new Date(payment.paid_date) > new Date(payment.expected_date)
+    const graceMs = 5 * 24 * 60 * 60 * 1000;
+    return new Date(payment.paid_date) - new Date(payment.expected_date) >
+      graceMs
       ? "Late"
       : "Paid";
   };
@@ -158,6 +242,13 @@ export default function TenantDetail() {
     return "text-red-600 bg-red-100";
   };
 
+  const colorFamilies = [
+    { bg: 'bg-indigo-600', c1: 'bg-indigo-400', c2: 'bg-violet-400', c3: 'bg-indigo-300', c4: 'bg-violet-500', inner: 'bg-indigo-800/60', shadow: 'shadow-indigo-200 dark:shadow-indigo-900/40', border: 'border-indigo-100 dark:border-indigo-900/50', title: 'text-indigo-600 dark:text-indigo-400' },
+    { bg: 'bg-purple-600', c1: 'bg-purple-400', c2: 'bg-fuchsia-400', c3: 'bg-purple-300', c4: 'bg-fuchsia-500', inner: 'bg-purple-800/60', shadow: 'shadow-purple-200 dark:shadow-purple-900/40', border: 'border-purple-100 dark:border-purple-900/50', title: 'text-purple-600 dark:text-purple-400' },
+    { bg: 'bg-emerald-600', c1: 'bg-emerald-400', c2: 'bg-teal-400', c3: 'bg-emerald-300', c4: 'bg-teal-500', inner: 'bg-emerald-800/60', shadow: 'shadow-emerald-200 dark:shadow-emerald-900/40', border: 'border-emerald-100 dark:border-emerald-900/50', title: 'text-emerald-600 dark:text-emerald-400' },
+    { bg: 'bg-orange-500', c1: 'bg-orange-400', c2: 'bg-amber-400', c3: 'bg-orange-300', c4: 'bg-amber-500', inner: 'bg-orange-800/60', shadow: 'shadow-orange-200 dark:shadow-orange-900/40', border: 'border-orange-100 dark:border-orange-900/50', title: 'text-orange-600 dark:text-orange-400' },
+  ]
+
   if (!tenant)
     return (
       <Layout>
@@ -165,60 +256,11 @@ export default function TenantDetail() {
       </Layout>
     );
 
-  const tenantInfo = [
-    { label: "Name", value: tenant.full_name },
-    { label: "House No", value: tenant.house_number },
-    { label: "Phone", value: tenant.phone || "-" },
-    {
-      label: "Monthly Rent",
-      value: `₹${tenant.monthly_rent?.toLocaleString() || "-"}`,
-    },
-    {
-      label: "Advance",
-      value: `₹${tenant.advance_amount?.toLocaleString() || "-"}`,
-    },
-    {
-      label: "Agreement Date",
-      value: tenant.agreement_start_date
-        ? new Date(tenant.agreement_start_date).toLocaleDateString("en-IN")
-        : "-",
-    },
-    { label: "Rent Due Day", value: tenant.rent_due_day || "-" },
-    { label: "Aadhar Number", value: tenant.aadhar_number || "-" },
-    {
-      label: "Aadhar File",
-      value: tenant.aadhar_file_url ? (
-        <a
-          href={tenant.aadhar_file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-black hover:text-gray-800 underline">
-          View File
-        </a>
-      ) : (
-        "-"
-      ),
-    },
-    { label: "PAN Number", value: tenant.pan_number || "-" },
-    {
-      label: "PAN File",
-      value: tenant.pan_file_url ? (
-        <a
-          href={tenant.pan_file_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-black hover:text-gray-800 underline">
-          View File
-        </a>
-      ) : (
-        "-"
-      ),
-    },
-  ];
+  const color = colorFamilies[tenant.full_name?.charCodeAt(0) % colorFamilies.length] || colorFamilies[0]
 
   return (
     <Layout>
-      <div className="py-14 px-4 sm:px-6 space-y-6">
+      <div className="space-y-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/tenants")}
@@ -233,87 +275,68 @@ export default function TenantDetail() {
           </h1>
         </div>
 
-        <Card>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold dark:text-white">
-              Tenant Information
-            </h2>
-            <button
-              onClick={() => setMinimizeTenantInfo(!minimizeTenantInfo)}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-              <FontAwesomeIcon
-                icon={minimizeTenantInfo ? faPlusSquare : faMinusSquare}
-                className="w-5 h-5"
-              />
-            </button>
+        {/* Tenant Info — press card style */}
+        <div className={`relative overflow-hidden rounded-2xl shadow-lg ${color.shadow} border ${color.border} flex flex-col sm:flex-row min-h-[200px]`}>
+          <div className={`relative overflow-hidden ${color.bg} sm:w-[200px] shrink-0 flex flex-col items-center justify-center py-8 px-6`}>
+            <span className={`absolute rounded-full ${color.c1} opacity-70`} style={{ width: 130, height: 130, top: -35, right: -35, filter: 'blur(1px)' }} />
+            <span className={`absolute rounded-full ${color.c2} opacity-60`} style={{ width: 80, height: 80, top: 30, right: 55, filter: 'blur(1px)' }} />
+            <span className={`absolute rounded-full ${color.c3} opacity-50`} style={{ width: 45, height: 45, top: 80, right: -10, filter: 'blur(1px)' }} />
+            <span className={`absolute rounded-full ${color.c4} opacity-40`} style={{ width: 90, height: 90, bottom: -25, left: -25, filter: 'blur(1px)' }} />
+            <div className="relative z-10 w-16 h-16 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-white text-2xl font-bold mb-3">
+              {tenant.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+            <div className={`relative z-10 ${color.inner} rounded-xl px-4 py-2 text-center w-full`}>
+              <p className="text-white font-bold text-sm leading-tight">{tenant.full_name}</p>
+              <p className="text-indigo-200 text-xs mt-0.5">{tenant.house_number}</p>
+            </div>
+            <span className="relative z-10 mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              Active Tenant
+            </span>
           </div>
 
-          {!minimizeTenantInfo && (
-            <>
-              <div className="hidden sm:block overflow-x-auto hide-scrollbar">
-                <table className="w-full">
-                  <tbody>
-                    {tenantInfo.map((item, index) => (
-                      <tr
-                        key={item.label}
-                        className={
-                          index % 2 === 0
-                            ? "bg-gray-100 dark:bg-gray-700/50"
-                            : "bg-white dark:bg-gray-800"
-                        }>
-                        <td className="py-2.5 px-3 font-medium text-gray-700 dark:text-gray-300 w-40">
-                          {item.label}
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-900 dark:text-gray-100">
-                          {item.value}
-                        </td>
-                      </tr>
-                    ))}
-                    {tenant.family_details && (
-                      <tr className="bg-gray-100 dark:bg-gray-700/50">
-                        <td className="py-2.5 px-3 font-medium text-gray-700 dark:text-gray-300">
-                          Family Details
-                        </td>
-                        <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">
-                          {tenant.family_details}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="sm:hidden space-y-3">
-                {tenantInfo.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-700/50">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {item.label}
-                    </span>
-                    <span className="text-gray-900 dark:text-gray-100">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-                {tenant.family_details && (
-                  <div className="flex flex-col p-3 rounded-lg bg-gray-100 dark:bg-gray-700/50">
-                    <span className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Family Details
-                    </span>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {tenant.family_details}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </Card>
+          {/* Right panel */}
+          <div className="flex-1 bg-white dark:bg-gray-800 p-6">
+            <h2 className={`text-sm font-bold uppercase tracking-widest ${color.title} mb-4`}>Tenant Information</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3">
+              {[
+                { label: 'Phone',          value: tenant.phone || '—' },
+                { label: 'Monthly Rent',   value: `₹${tenant.monthly_rent?.toLocaleString() || '—'}` },
+                { label: 'Advance',        value: `₹${tenant.advance_amount?.toLocaleString() || '—'}` },
+                { label: 'Agreement Date', value: tenant.agreement_start_date ? new Date(tenant.agreement_start_date).toLocaleDateString('en-IN') : '—' },
+                { label: 'Rent Due Day',   value: tenant.rent_due_day ? `${tenant.rent_due_day}th of month` : '—' },
+                { label: 'Aadhar No.',     value: tenant.aadhar_number || '—' },
+                { label: 'PAN No.',        value: tenant.pan_number || '—' },
+                tenant.aadhar_file_url && { label: 'Aadhar File', value: <a href={tenant.aadhar_file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline">View File</a> },
+                tenant.pan_file_url    && { label: 'PAN File',    value: <a href={tenant.pan_file_url}    target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline">View File</a> },
+                tenant.family_details  && { label: 'Family',      value: tenant.family_details },
+              ].filter(Boolean).map(item => (
+                <div key={item.label}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-0.5">{item.label}</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="flex flex-row gap-3 justify-center">
           <Button onClick={() => setShowEditForm(true)}>Edit Tenant</Button>
-          <Button onClick={() => setShowPaymentForm(true)}>Add Payment</Button>
+          <Button
+            onClick={() => {
+              setEditingPayment(null);
+              setFormData({
+                month: "",
+                expected_date: "",
+                paid_date: "",
+                amount: "",
+                payment_mode: "Cash",
+                remarks: "",
+              });
+              setShowPaymentForm(true);
+            }}>
+            Add Payment
+          </Button>
           <Button
             onClick={() => generatePaymentPDF(tenant, payments)}
             variant="secondary">
@@ -322,88 +345,77 @@ export default function TenantDetail() {
         </div>
 
         <Card>
-          <h2 className="text-lg font-bold mb-4 dark:text-white">
-            Payment History
-          </h2>
-
+          <h2 className="text-lg font-bold mb-4 dark:text-white">Payment History</h2>
           <div className="overflow-x-auto hide-scrollbar">
             <table className="w-full min-w-[600px]">
-              <thead className="bg-black text-white">
-                <tr>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Month
-                  </th>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Expected
-                  </th>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Paid
-                  </th>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Amount
-                  </th>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Mode
-                  </th>
-                  <th className="py-3 px-3 text-left text-xs sm:text-sm font-medium">
-                    Status
-                  </th>
+              <thead>
+                <tr className="bg-indigo-50 dark:bg-indigo-900/20 border-b border-gray-200 dark:border-gray-700">
+                  {['Month','Expected','Paid','Amount','Mode','Status',''].map(h => (
+                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {payments.map((payment) => {
-                  const status = getStatus(payment);
+              <tbody>
+                {payments.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-16 text-sm text-gray-400">No payment records</td></tr>
+                ) : payments.map((payment, i) => {
+                  const status = getStatus(payment)
                   return (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="py-2 px-3 text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(payment.month).toLocaleDateString("en-IN", {
-                          month: "short",
-                          year: "numeric",
-                        })}
+                    <tr key={payment.id} className="border-b border-gray-100 dark:border-gray-700/60 last:border-0 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-colors group">
+                      <td className="px-5 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                        {new Date(payment.month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="py-2 px-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(payment.expected_date).toLocaleDateString(
-                          "en-IN",
-                        )}
+                      <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        {new Date(payment.expected_date).toLocaleDateString('en-IN')}
                       </td>
-                      <td className="py-2 px-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        {payment.paid_date
-                          ? new Date(payment.paid_date).toLocaleDateString(
-                              "en-IN",
-                            )
-                          : "-"}
+                      <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        {payment.paid_date ? new Date(payment.paid_date).toLocaleDateString('en-IN') : '—'}
                       </td>
-                      <td className="py-2 px-3 text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <td className="px-5 py-4 text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap tabular-nums">
                         ₹{payment.amount?.toLocaleString()}
                       </td>
-                      <td className="py-2 px-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         {payment.payment_mode}
                       </td>
-                      <td className="py-2 px-3">
-                        <span
-                          className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusColor(status)}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            status === 'Paid' ? 'bg-green-500' : status === 'Late' ? 'bg-orange-400' : 'bg-red-500'
+                          }`} />
                           {status}
                         </span>
                       </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditPayment(payment)} title="Edit payment" className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button onClick={() => handleDeletePayment(payment)} title="Delete payment" className="p-1.5 rounded-md text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                              <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  );
+                  )
                 })}
               </tbody>
             </table>
           </div>
-
-          {payments.length === 0 && (
-            <p className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No payment records
-            </p>
-          )}
         </Card>
 
         <Modal
           isOpen={showPaymentForm}
           onClose={() => setShowPaymentForm(false)}
-          title="Add Payment">
-          <form onSubmit={handleAddPayment} className="space-y-4">
+          title={editingPayment ? "Edit Payment" : "Add Payment"}>
+          <form
+            onSubmit={editingPayment ? handleUpdatePayment : handleAddPayment}
+            className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2 ml-1">
@@ -501,7 +513,7 @@ export default function TenantDetail() {
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="px-4 py-2 text-sm">
-                Save Payment
+                {editingPayment ? "Save Changes" : "Save Payment"}
               </Button>
               <Button
                 type="button"

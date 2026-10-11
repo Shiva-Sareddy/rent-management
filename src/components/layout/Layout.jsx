@@ -1,60 +1,43 @@
-import { useState, useEffect } from "react";
-import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
+import { useState, useEffect } from 'react'
+import Sidebar from './Sidebar'
+import Topbar from './Topbar'
 
-export default function Layout({ children, hideSidebarToggle = false }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function Layout({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Handle window resize
+  useEffect(() => {
+    const saved = localStorage.getItem('theme') || 'light'
+    document.documentElement.classList.remove('light', 'dark')
+    document.documentElement.classList.add(saved)
+  }, [])
+
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setSidebarOpen(false);
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Apply theme on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "system";
-    const root = window.document.documentElement;
-
-    if (savedTheme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light";
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(savedTheme);
+      if (window.innerWidth >= 1024) setSidebarOpen(false)
     }
-  }, []);
-
-  const toggleSidebar = () => {
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(!sidebarOpen);
-    }
-  };
-
-  const marginLeft = "200px";
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Navbar hideSidebarToggle={hideSidebarToggle} />
-      <Sidebar
-        isOpen={sidebarOpen}
-        closeSidebar={() => setSidebarOpen(false)}
-      />
-      <main
-        id="main-content"
-        className="pt-16"
-        style={{ marginLeft: window.innerWidth >= 1024 ? marginLeft : 0 }}>
-        <div className="max-w-[1600px] mx-auto py-6 px-5 sm:px-6 lg:px-10 xl:px-12 pb-20 lg:pb-6">
+    <div className="flex min-h-screen bg-[#f6f7f9] dark:bg-gray-900">
+      <Sidebar isOpen={sidebarOpen} closeSidebar={() => setSidebarOpen(false)} />
+
+      {/* Main area */}
+      <div className="flex flex-col flex-1 lg:ml-[248px] min-w-0">
+        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 px-5 py-5 sm:px-8 sm:py-6 lg:px-10 lg:py-8 max-w-[1600px] w-full mx-auto">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
-  );
+  )
 }

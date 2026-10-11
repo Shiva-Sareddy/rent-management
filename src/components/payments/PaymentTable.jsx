@@ -1,7 +1,9 @@
 export default function PaymentTable({ payments }) {
   const getStatus = (payment) => {
     if (!payment.paid_date) return "Pending";
-    return new Date(payment.paid_date) > new Date(payment.expected_date)
+    const graceMs = 5 * 24 * 60 * 60 * 1000;
+    return new Date(payment.paid_date) - new Date(payment.expected_date) >
+      graceMs
       ? "Late"
       : "Paid";
   };

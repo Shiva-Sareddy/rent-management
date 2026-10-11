@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../services/supabaseClient";
+import { cache } from "../services/dataCache";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -205,6 +206,7 @@ export default function AddTenant() {
       }
 
       console.log("Tenant saved successfully!");
+      cache.invalidate('tenants')
       navigate("/tenants");
     } catch (err) {
       console.error("Error submitting form:", err);
@@ -218,7 +220,7 @@ export default function AddTenant() {
 
   return (
     <Layout hideSidebarToggle>
-      <div className="py-12 px-5 sm:px-8 lg:px-12 min-h-screen">
+      <div className="min-h-screen">
         <div className="max-w-3xl lg:max-w-4xl mx-auto">
           {/* Progress Bar */}
           <div className="mb-10">
@@ -266,7 +268,7 @@ export default function AddTenant() {
                       className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
-                  <h2 className="text-lg font-semibold dark:text-white">
+                  <h2 className="text-xl font-semibold dark:text-white">
                     Property Details
                   </h2>
                 </div>
@@ -379,7 +381,7 @@ export default function AddTenant() {
                       className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
-                  <h2 className="text-lg font-semibold dark:text-white">
+                  <h2 className="text-xl font-semibold dark:text-white">
                     Personal Details
                   </h2>
                 </div>
@@ -508,7 +510,7 @@ export default function AddTenant() {
                       className="w-5 h-5 text-black dark:text-gray-300"
                     />
                   </div>
-                  <h2 className="text-lg font-semibold dark:text-white">
+                  <h2 className="text-xl font-semibold dark:text-white">
                     Family Details
                   </h2>
                 </div>
@@ -607,7 +609,7 @@ export default function AddTenant() {
                       className="w-5 h-5 text-green-600 dark:text-green-400"
                     />
                   </div>
-                  <h2 className="text-lg font-semibold dark:text-white">
+                  <h2 className="text-xl font-semibold dark:text-white">
                     Review Details
                   </h2>
                 </div>

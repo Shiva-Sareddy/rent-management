@@ -40,9 +40,11 @@ export default function Reports() {
         ?.filter((p) => !p.paid_date)
         .reduce((sum, p) => sum + parseFloat(p.amount), 0) || 0;
     const latePayments =
-      paymentsData?.filter(
-        (p) => p.paid_date && new Date(p.paid_date) > new Date(p.expected_date),
-      ).length || 0;
+      paymentsData?.filter((p) => {
+        if (!p.paid_date) return false;
+        const graceMs = 5 * 24 * 60 * 60 * 1000;
+        return new Date(p.paid_date) - new Date(p.expected_date) > graceMs;
+      }).length || 0;
 
     setStats({ totalCollected, totalPending, latePayments });
   };
