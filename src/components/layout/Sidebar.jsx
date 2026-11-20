@@ -104,13 +104,16 @@ export default function Sidebar({ isOpen, closeSidebar }) {
     if (avatarFile) {
       const path = `avatars/${userId}`;
       const { error: upErr } = await supabase.storage.from('tenant-files').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
+      console.log('[avatar] upload error:', upErr);
       if (!upErr) {
         const { data: urlData } = supabase.storage.from('tenant-files').getPublicUrl(path);
         avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
+        console.log('[avatar] public url:', avatar_url);
       }
     }
 
-    await supabase.from('profiles').upsert({ id: userId, username: editName.trim(), avatar_url });
+    const { error: dbErr } = await supabase.from('profiles').upsert({ id: userId, username: editName.trim(), avatar_url });
+    console.log('[avatar] db upsert error:', dbErr, 'saved url:', avatar_url);
     setProfile({ username: editName.trim(), avatar_url });
     setSaving(false);
     setShowProfileModal(false);
