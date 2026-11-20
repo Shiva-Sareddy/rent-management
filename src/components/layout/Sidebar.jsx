@@ -54,14 +54,22 @@ export default function Sidebar({ isOpen, closeSidebar }) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef();
 
+  const fetchProfile = (uid) => {
+    supabase.from('profiles').select('username, avatar_url').eq('id', uid).single()
+      .then(({ data }) => { if (data) setProfile(data); });
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       setUserId(user.id);
-      supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single()
-        .then(({ data }) => { if (data) setProfile(data); });
+      fetchProfile(user.id);
       supabase.from('tenants').select('id', { count: 'exact' }).eq('user_id', user.id)
         .then(({ count }) => setTenantCount(count));
+
+      const handleFocus = () => fetchProfile(user.id);
+      window.addEventListener('focus', handleFocus);
+      return () => window.removeEventListener('focus', handleFocus);
     });
   }, []);
 
@@ -85,12 +93,11 @@ export default function Sidebar({ isOpen, closeSidebar }) {
     let avatar_url = profile.avatar_url || '';
 
     if (avatarFile) {
-      const ext = avatarFile.name.split('.').pop();
-      const path = `avatars/${userId}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('tenant-files').upload(path, avatarFile, { upsert: true });
+      const path = `avatars/${userId}`;
+      const { error: upErr } = await supabase.storage.from('tenant-files').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
       if (!upErr) {
-        const { data: urlData } = await supabase.storage.from('tenant-files').createSignedUrl(path, 60 * 60 * 24 * 365);
-        avatar_url = urlData?.signedUrl || avatar_url;
+        const { data: urlData } = supabase.storage.from('tenant-files').getPublicUrl(path);
+        avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
       }
     }
 
