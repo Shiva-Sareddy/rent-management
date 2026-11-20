@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Tenants from "./pages/Tenants";
 import AddTenant from "./pages/AddTenant";
 import TenantDetail from "./pages/TenantDetail";
+import Notes from "./pages/Notes";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 function App() {
@@ -70,6 +71,14 @@ function App() {
           element={
             <ProtectedRoute>
               <TenantDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes"
+          element={
+            <ProtectedRoute>
+              <Notes />
             </ProtectedRoute>
           }
         />
