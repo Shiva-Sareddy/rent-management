@@ -210,7 +210,7 @@ export default function Notes() {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4" onClick={() => setSelected(null)}>
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="bg-white dark:bg-gray-900 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto"
+              className="bg-white dark:bg-gray-900 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col" style={{ maxHeight: '92vh' }}
               onClick={e => e.stopPropagation()}>
 
               {/* Top bar */}
@@ -234,7 +234,7 @@ export default function Notes() {
                 </div>
               </div>
 
-              <div className="px-5 py-5 space-y-5">
+              <div className="px-5 py-5 space-y-5 overflow-y-auto flex-1">
                 {/* Title + meta */}
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-snug mb-2">{selected.title}</h2>
