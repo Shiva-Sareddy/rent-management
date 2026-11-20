@@ -26,6 +26,22 @@ const getGreeting = () => {
   return 'Good evening'
 }
 
+// rent_day = integer 1–31, the fixed day of month rent is due
+const getRentExpected = (tenant, year, month) => {
+  const day = tenant.rent_day || 1
+  const m = String(parseInt(month)).padStart(2, '0')
+  const d = String(day).padStart(2, '0')
+  return `${year}-${m}-${d}`
+}
+const addDays = (dateStr, days) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + days)
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+}
+const getDeadline = (tenant, year, month) => {
+  return addDays(getRentExpected(tenant, year, month), tenant.rent_due_day || 0)
+}
+
 export default function Dashboard() {
   const [tenants, setTenants] = useState([])
   const [payments, setPayments] = useState([])
@@ -39,7 +55,9 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    setUserEmail(user?.email || '')
+
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single()
+    setUserEmail(profile?.username || user?.email?.split('@')[0] || 'there')
 
     const cachedTenants = cache.get('tenants')
     const cachedPayments = cache.get('payments')
@@ -80,12 +98,19 @@ export default function Dashboard() {
 
     tenants.forEach(tenant => {
       const payment = monthPayments.find(p => p.tenant_id === tenant.id)
+
       if (payment?.paid_date) {
-        paidTenants.push({ ...tenant, payment })
+        const paidDate = payment.paid_date.slice(0, 10)
+        const expectedDate = payment.expected_date?.slice(0, 10) || getRentExpected(tenant, selectedYear, selectedMonth)
+        const deadline = addDays(expectedDate, tenant.rent_due_day || 0)
+        const paidStatus = paidDate <= expectedDate ? 'On Time'
+          : paidDate <= deadline ? 'Grace Period'
+          : 'Late'
+        paidTenants.push({ ...tenant, payment, paidStatus })
       } else {
-        const dueDay = tenant.rent_due_day || 1
-        const dueDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, dueDay)
-        const isOverdue = today > dueDate
+        const todayStr = today.toISOString().slice(0, 10)
+        const deadline = getDeadline(tenant, selectedYear, selectedMonth)
+        const isOverdue = todayStr > deadline
         pendingTenants.push({ ...tenant, isOverdue })
       }
     })
@@ -106,7 +131,7 @@ export default function Dashboard() {
   }, [tenants, payments, selectedMonth, selectedYear])
 
   const monthLabel = `${MONTHS.find(m => m.value === selectedMonth)?.label} ${selectedYear}`
-  const userName = userEmail ? userEmail.split('@')[0] : 'there'
+  const userName = userEmail || 'there'
 
   if (loading) return (
     <Layout>
@@ -131,24 +156,13 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <select
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="input-field !py-2 !px-4 !text-xs w-auto"
-            >
+            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="input-field !py-2 !px-4 !text-xs w-auto">
               {MONTHS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="input-field !py-2 !px-4 !text-xs w-auto"
-            >
+            <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="input-field !py-2 !px-4 !text-xs w-auto">
               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <button
-              onClick={() => navigate('/tenants/new')}
-              className="btn-primary !py-2 !px-5 !text-xs whitespace-nowrap"
-            >
+            <button onClick={() => navigate('/tenants/new')} className="btn-primary !py-2 !px-5 !text-xs whitespace-nowrap">
               + Add Tenant
             </button>
           </div>
@@ -158,8 +172,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
             {
-              label: 'Total Tenants',
-              value: tenants.length,
+              label: 'Total Tenants', value: tenants.length,
               sub: `${data.paidTenants.length} paid this month`,
               circles: [
                 { size: 110, pos: 'top-[-30px] right-[-30px]', color: 'bg-indigo-400' },
@@ -169,8 +182,7 @@ export default function Dashboard() {
               shadow: 'shadow-indigo-200 dark:shadow-indigo-900/40',
             },
             {
-              label: 'Expected Rent',
-              value: fmt(data.expectedRent),
+              label: 'Expected Rent', value: fmt(data.expectedRent),
               sub: `Due ${monthLabel}`,
               circles: [
                 { size: 110, pos: 'top-[-30px] right-[-30px]', color: 'bg-purple-400' },
@@ -180,8 +192,7 @@ export default function Dashboard() {
               shadow: 'shadow-purple-200 dark:shadow-purple-900/40',
             },
             {
-              label: 'Collected',
-              value: fmt(data.collected),
+              label: 'Collected', value: fmt(data.collected),
               sub: `${data.rate}% collection rate`,
               circles: [
                 { size: 110, pos: 'top-[-30px] right-[-30px]', color: 'bg-emerald-400' },
@@ -191,8 +202,7 @@ export default function Dashboard() {
               shadow: 'shadow-emerald-200 dark:shadow-emerald-900/40',
             },
             {
-              label: 'Pending',
-              value: fmt(data.pending),
+              label: 'Pending', value: fmt(data.pending),
               sub: `${data.pendingTenants.length} tenants pending`,
               circles: [
                 { size: 110, pos: 'top-[-30px] right-[-30px]', color: 'bg-orange-400' },
@@ -204,17 +214,11 @@ export default function Dashboard() {
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.07 }}
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
               className={`relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6 shadow-lg ${stat.shadow}`}
             >
               {stat.circles.map((c, ci) => (
-                <span
-                  key={ci}
-                  className={`absolute rounded-full opacity-80 ${c.color} ${c.pos}`}
-                  style={{ width: c.size, height: c.size, filter: 'blur(1px)' }}
-                />
+                <span key={ci} className={`absolute rounded-full opacity-80 ${c.color} ${c.pos}`} style={{ width: c.size, height: c.size, filter: 'blur(1px)' }} />
               ))}
               <div className="relative z-10">
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">{stat.label}</p>
@@ -227,16 +231,12 @@ export default function Dashboard() {
 
         {/* Chart + summary */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-          {/* Bar chart */}
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6"
           >
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Collection Overview</h2>
-              <p className="text-sm text-gray-400 mt-1">Track your rent collection over time.</p>
-            </div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Collection Overview</h2>
+            <p className="text-sm text-gray-400 mt-1">Track your rent collection over time.</p>
             <div className="mt-4 mb-3">
               <p className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{fmt(data.collected)}</p>
               {data.rate > 0 && <span className="text-xs font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded mt-1 inline-block">+{data.rate}% collected</span>}
@@ -247,20 +247,13 @@ export default function Dashboard() {
                   <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
                     {t.amount > 0 ? `₹${Math.round(t.amount / 1000)}k` : ''}
                   </span>
-                  <div
-                    className="w-full rounded-t transition-all duration-700"
-                    style={{
-                      height: `${Math.max((t.amount / data.maxTrend) * 110, t.amount > 0 ? 8 : 4)}px`,
-                      backgroundColor: t.isCurrent ? '#635bff' : '#c7d2fe',
-                    }}
-                  />
+                  <div className="w-full rounded-t transition-all duration-700" style={{ height: `${Math.max((t.amount / data.maxTrend) * 110, t.amount > 0 ? 8 : 4)}px`, backgroundColor: t.isCurrent ? '#635bff' : '#c7d2fe' }} />
                   <span className="text-xs text-gray-400">{t.label}</span>
                 </div>
               ))}
             </div>
           </motion.div>
 
-          {/* Summary panel */}
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6"
@@ -273,9 +266,11 @@ export default function Dashboard() {
             </div>
             <div className="mt-5 space-y-3">
               {[
-                { label: 'Paid', count: data.paidTenants.length, color: 'bg-green-500' },
-                { label: 'Overdue', count: data.pendingTenants.filter(t => t.isOverdue).length, color: 'bg-red-500' },
-                { label: 'Pending', count: data.pendingTenants.filter(t => !t.isOverdue).length, color: 'bg-orange-400' },
+                { label: 'On Time',      count: data.paidTenants.filter(t => t.paidStatus === 'On Time').length,      color: 'bg-green-500' },
+                { label: 'Grace Period', count: data.paidTenants.filter(t => t.paidStatus === 'Grace Period').length, color: 'bg-yellow-400' },
+                { label: 'Late',         count: data.paidTenants.filter(t => t.paidStatus === 'Late').length,         color: 'bg-orange-400' },
+                { label: 'Overdue',      count: data.pendingTenants.filter(t => t.isOverdue).length,                  color: 'bg-red-500' },
+                { label: 'Pending',      count: data.pendingTenants.filter(t => !t.isOverdue).length,                 color: 'bg-gray-400' },
               ].map(s => (
                 <div key={s.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -298,10 +293,8 @@ export default function Dashboard() {
           </motion.div>
         </section>
 
-        {/* Paid / Unpaid for selected month */}
+        {/* Paid / Unpaid */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-          {/* Paid */}
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5"
@@ -311,40 +304,38 @@ export default function Dashboard() {
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Paid</h2>
                 <p className="text-[11px] text-gray-400 mt-0.5">{data.paidTenants.length} tenant{data.paidTenants.length !== 1 ? 's' : ''} paid</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
-                {monthLabel}
-              </span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">{monthLabel}</span>
             </div>
             <div className="space-y-1">
               {data.paidTenants.length === 0 ? (
                 <p className="text-center py-8 text-xs text-gray-400">No payments recorded yet</p>
-              ) : data.paidTenants.map(t => (
-                <div
-                  key={t.id}
-                  onClick={() => navigate(`/tenants/${t.id}`)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-600 dark:text-green-400">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
+              ) : data.paidTenants.map(t => {
+                const statusStyle = {
+                  'On Time':      'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+                  'Grace Period': 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
+                  'Late':         'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
+                }[t.paidStatus] || ''
+                return (
+                  <div key={t.id} onClick={() => navigate(`/tenants/${t.id}`)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-600 dark:text-green-400">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{t.full_name}</p>
+                      <p className="text-[11px] text-gray-400">{t.house_number}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{fmt(t.payment?.amount)}</p>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusStyle}`}>{t.paidStatus}</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{t.full_name}</p>
-                    <p className="text-[11px] text-gray-400">{t.house_number}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{fmt(t.payment?.amount)}</p>
-                    <p className="text-[10px] text-gray-400">
-                      {t.payment?.paid_date ? new Date(t.payment.paid_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </motion.div>
 
-          {/* Unpaid */}
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5"
@@ -354,24 +345,17 @@ export default function Dashboard() {
                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Unpaid</h2>
                 <p className="text-[11px] text-gray-400 mt-0.5">{data.pendingTenants.length} tenant{data.pendingTenants.length !== 1 ? 's' : ''} pending</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400">
-                {monthLabel}
-              </span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400">{monthLabel}</span>
             </div>
             <div className="space-y-1">
               {data.pendingTenants.length === 0 ? (
                 <p className="text-center py-8 text-xs text-gray-500">All tenants have paid!</p>
               ) : data.pendingTenants.map(t => {
-                const s = {
-                  true:  { dot: 'bg-red-500',  badge: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',     label: 'Overdue' },
-                  false: { dot: 'bg-orange-400', badge: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400', label: 'Pending' },
-                }[t.isOverdue]
+                const s = t.isOverdue
+                  ? { dot: 'bg-red-500',    badge: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',       label: 'Overdue' }
+                  : { dot: 'bg-orange-400', badge: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400', label: 'Pending' }
                 return (
-                  <div
-                    key={t.id}
-                    onClick={() => navigate(`/tenants/${t.id}`)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                  >
+                  <div key={t.id} onClick={() => navigate(`/tenants/${t.id}`)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
                     <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
                       <span className={`w-2.5 h-2.5 rounded-full ${s.dot}`} />
                     </div>
@@ -388,7 +372,6 @@ export default function Dashboard() {
               })}
             </div>
           </motion.div>
-
         </section>
 
       </div>

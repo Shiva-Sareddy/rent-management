@@ -3,23 +3,33 @@ import Button from "../ui/Button";
 
 export default function TenantForm({ tenant, onSubmit, onCancel }) {
   const [formData, setFormData] = useState(
-    tenant || {
-      full_name: "",
-      phone: "",
-      aadhar: "",
-      pan: "",
-      family_details: "",
-      house_number: "",
-      monthly_rent: "",
-      advance_amount: "",
-      agreement_start_date: "",
-      rent_due_day: 5,
-    },
+    tenant
+      ? {
+          ...tenant,
+          rent_day: tenant.rent_day || "",
+          agreement_start_date: tenant.agreement_start_date ? tenant.agreement_start_date.slice(0, 10) : "",
+        }
+      : {
+          full_name: "",
+          phone: "",
+          aadhar_number: "",
+          pan_number: "",
+          family_details: "",
+          house_number: "",
+          monthly_rent: "",
+          advance_amount: "",
+          rent_day: "",
+          agreement_start_date: "",
+          rent_due_day: "",
+        },
   );
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      rent_day: formData.rent_day ? Math.round(Number(formData.rent_day)) : null,
+    });
   };
 
   return (
@@ -57,9 +67,9 @@ export default function TenantForm({ tenant, onSubmit, onCancel }) {
           <input
             type="text"
             className="input-field"
-            value={formData.aadhar}
+            value={formData.aadhar_number || ""}
             onChange={(e) =>
-              setFormData({ ...formData, aadhar: e.target.value })
+              setFormData({ ...formData, aadhar_number: e.target.value })
             }
           />
         </div>
@@ -70,8 +80,8 @@ export default function TenantForm({ tenant, onSubmit, onCancel }) {
           <input
             type="text"
             className="input-field"
-            value={formData.pan}
-            onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
+            value={formData.pan_number || ""}
+            onChange={(e) => setFormData({ ...formData, pan_number: e.target.value })}
           />
         </div>
         <div>
@@ -117,12 +127,28 @@ export default function TenantForm({ tenant, onSubmit, onCancel }) {
         </div>
         <div>
           <label className="block text-sm font-medium mb-2 ml-1">
+            Rent Day <span className="text-gray-400 text-xs font-normal">(day of month)</span>
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="31"
+            className="input-field"
+            value={formData.rent_day || ""}
+            placeholder="e.g., 10"
+            onChange={(e) =>
+              setFormData({ ...formData, rent_day: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-2 ml-1">
             Agreement Start Date
           </label>
           <input
             type="date"
             className="input-field"
-            value={formData.agreement_start_date}
+            value={formData.agreement_start_date || ""}
             onChange={(e) =>
               setFormData({ ...formData, agreement_start_date: e.target.value })
             }
@@ -130,14 +156,13 @@ export default function TenantForm({ tenant, onSubmit, onCancel }) {
         </div>
         <div>
           <label className="block text-sm font-medium mb-2 ml-1">
-            Rent Due Day
+            Grace Period (days)
           </label>
           <input
             type="number"
-            min="1"
-            max="31"
+            min="0"
             className="input-field"
-            value={formData.rent_due_day}
+            value={formData.rent_due_day || ""}
             onChange={(e) =>
               setFormData({ ...formData, rent_due_day: e.target.value })
             }

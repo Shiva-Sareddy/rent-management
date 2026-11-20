@@ -28,6 +28,7 @@ export default function AddTenant() {
     monthly_rent: "",
     advance_amount: "",
     agreement_start_date: "",
+    rent_day: "",
     full_name: "",
     phone: "",
     aadhar_number: "",
@@ -171,6 +172,7 @@ export default function AddTenant() {
           ? Math.round(Number(formData.advance_amount))
           : null,
         agreement_start_date: formData.agreement_start_date || null,
+        rent_day: formData.rent_day ? Math.round(Number(formData.rent_day)) : null,
         full_name: formData.full_name,
         phone: formData.phone,
         aadhar_number: formData.aadhar_number || null,
@@ -351,21 +353,37 @@ export default function AddTenant() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
-                        Rent Due Day
+                        Rent Day <span className="text-gray-400 text-xs font-normal">(day of month)</span>
                       </label>
                       <input
                         type="number"
                         step="1"
                         min="1"
                         max="31"
-                        value={formData.rent_due_day}
+                        value={formData.rent_day}
                         onChange={(e) =>
-                          updateFormData("rent_due_day", e.target.value)
+                          updateFormData("rent_day", e.target.value)
                         }
-                        placeholder="e.g., 5"
+                        placeholder="e.g., 10"
                         className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1">
+                      Grace Period (days)
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={formData.rent_due_day}
+                      onChange={(e) =>
+                        updateFormData("rent_due_day", e.target.value)
+                      }
+                      placeholder="e.g., 5"
+                      className="w-full px-4 py-3 text-base rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:border-black focus:ring-2 focus:ring-black outline-none"
+                    />
                   </div>
                 </div>
               </div>

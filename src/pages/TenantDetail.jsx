@@ -34,19 +34,18 @@ export default function TenantDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (formData.month && tenant) {
-      const [year, month] = formData.month.split("-");
-      const dueDay = tenant.rent_due_day || 1;
-      const expectedDate = new Date(year, parseInt(month) - 1, dueDay);
-      const expectedDateStr = expectedDate.toISOString().split("T")[0];
-
-      setFormData((prev) => ({
+    if (formData.month && tenant && !editingPayment) {
+      const [year, month] = formData.month.split('-')
+      const day = tenant.rent_day || 1
+      const d = String(day).padStart(2, '0')
+      const m = String(parseInt(month)).padStart(2, '0')
+      setFormData(prev => ({
         ...prev,
-        expected_date: expectedDateStr,
+        expected_date: `${year}-${m}-${d}`,
         amount: tenant.monthly_rent,
-      }));
+      }))
     }
-  }, [formData.month, tenant]);
+  }, [formData.month, tenant])
 
   const fetchTenant = async () => {
     const { data, error } = await supabase
@@ -206,13 +205,14 @@ export default function TenantDetail() {
       .update({
         full_name: updatedData.full_name,
         phone: updatedData.phone,
-        aadhar: updatedData.aadhar,
-        pan: updatedData.pan,
+        aadhar_number: updatedData.aadhar_number || null,
+        pan_number: updatedData.pan_number || null,
         house_number: updatedData.house_number,
         monthly_rent: Math.round(Number(updatedData.monthly_rent)),
         advance_amount: Math.round(Number(updatedData.advance_amount)) || 0,
+        rent_day: updatedData.rent_day ? Math.round(Number(updatedData.rent_day)) : null,
         agreement_start_date: updatedData.agreement_start_date || null,
-        rent_due_day: Math.round(Number(updatedData.rent_due_day)) || 1,
+        rent_due_day: Math.round(Number(updatedData.rent_due_day)) || 0,
         family_details: updatedData.family_details,
       })
       .eq("id", id);
@@ -227,20 +227,38 @@ export default function TenantDetail() {
     setShowEditForm(false);
   };
 
+  // expected date for a given month = rent_date day applied to that month
+  // deadline = expected date + rent_due_day grace days
+  const getRentExpected = (year, month) => {
+    const day = tenant.rent_day || 1
+    const d = String(day).padStart(2, '0')
+    const m = String(parseInt(month)).padStart(2, '0')
+    return `${year}-${m}-${d}`
+  }
+
+  const addDays = (dateStr, days) => {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const dt = new Date(y, m - 1, d + days)
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+  }
+
   const getStatus = (payment) => {
-    if (!payment.paid_date) return "Pending";
-    const graceMs = 5 * 24 * 60 * 60 * 1000;
-    return new Date(payment.paid_date) - new Date(payment.expected_date) >
-      graceMs
-      ? "Late"
-      : "Paid";
-  };
+    if (!payment.paid_date) return 'Pending'
+    const expectedDate = payment.expected_date?.slice(0, 10)
+    if (!expectedDate) return 'Pending'
+    const deadline = addDays(expectedDate, tenant.rent_due_day || 0)
+    const paidDate = payment.paid_date.slice(0, 10)
+    if (paidDate <= expectedDate) return 'On Time'
+    if (paidDate <= deadline) return 'Grace Period'
+    return 'Late'
+  }
 
   const getStatusColor = (status) => {
-    if (status === "Paid") return "text-green-600 bg-green-100";
-    if (status === "Late") return "text-orange-600 bg-orange-100";
-    return "text-red-600 bg-red-100";
-  };
+    if (status === 'On Time')      return 'text-green-600 bg-green-100 dark:bg-green-900/20'
+    if (status === 'Grace Period') return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20'
+    if (status === 'Late')         return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20'
+    return 'text-red-600 bg-red-100 dark:bg-red-900/20'
+  }
 
   const colorFamilies = [
     { bg: 'bg-indigo-600', c1: 'bg-indigo-400', c2: 'bg-violet-400', c3: 'bg-indigo-300', c4: 'bg-violet-500', inner: 'bg-indigo-800/60', shadow: 'shadow-indigo-200 dark:shadow-indigo-900/40', border: 'border-indigo-100 dark:border-indigo-900/50', title: 'text-indigo-600 dark:text-indigo-400' },
@@ -303,8 +321,9 @@ export default function TenantDetail() {
                 { label: 'Phone',          value: tenant.phone || '—' },
                 { label: 'Monthly Rent',   value: `₹${tenant.monthly_rent?.toLocaleString() || '—'}` },
                 { label: 'Advance',        value: `₹${tenant.advance_amount?.toLocaleString() || '—'}` },
+                { label: 'Rent Day',      value: tenant.rent_day ? `${tenant.rent_day}th of every month` : '—' },
+                { label: 'Grace Period',   value: tenant.rent_due_day ? `${tenant.rent_due_day} days` : '—' },
                 { label: 'Agreement Date', value: tenant.agreement_start_date ? new Date(tenant.agreement_start_date).toLocaleDateString('en-IN') : '—' },
-                { label: 'Rent Due Day',   value: tenant.rent_due_day ? `${tenant.rent_due_day}th of month` : '—' },
                 { label: 'Aadhar No.',     value: tenant.aadhar_number || '—' },
                 { label: 'PAN No.',        value: tenant.pan_number || '—' },
                 tenant.aadhar_file_url && { label: 'Aadhar File', value: <a href={tenant.aadhar_file_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 underline">View File</a> },
@@ -366,10 +385,10 @@ export default function TenantDetail() {
                         {new Date(payment.month).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {new Date(payment.expected_date).toLocaleDateString('en-IN')}
+                        {payment.expected_date ? (() => { const [y,m,d] = payment.expected_date.slice(0,10).split('-'); return `${d}/${m}/${y}` })() : '—'}
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {payment.paid_date ? new Date(payment.paid_date).toLocaleDateString('en-IN') : '—'}
+                        {payment.paid_date ? (() => { const [y,m,d] = payment.paid_date.slice(0,10).split('-'); return `${d}/${m}/${y}` })() : '—'}
                       </td>
                       <td className="px-5 py-4 text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap tabular-nums">
                         ₹{payment.amount?.toLocaleString()}
@@ -380,7 +399,7 @@ export default function TenantDetail() {
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusColor(status)}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
-                            status === 'Paid' ? 'bg-green-500' : status === 'Late' ? 'bg-orange-400' : 'bg-red-500'
+                            status === 'On Time' ? 'bg-green-500' : status === 'Grace Period' ? 'bg-yellow-400' : status === 'Late' ? 'bg-orange-400' : 'bg-red-500'
                           }`} />
                           {status}
                         </span>
@@ -440,10 +459,8 @@ export default function TenantDetail() {
                   className="input-field bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
                   value={
                     formData.expected_date
-                      ? new Date(formData.expected_date).toLocaleDateString(
-                          "en-IN",
-                        )
-                      : "-"
+                      ? (() => { const [y,m,d] = formData.expected_date.slice(0,10).split('-'); return `${d}/${m}/${y}` })()
+                      : '-'
                   }
                   readOnly
                 />
