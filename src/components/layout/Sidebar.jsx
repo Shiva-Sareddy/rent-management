@@ -92,29 +92,20 @@ export default function Sidebar({ isOpen, closeSidebar }) {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarFile(ev.target.result);
+      setAvatarPreview(ev.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) return;
     setSaving(true);
-    let avatar_url = profile.avatar_url || '';
-
-    if (avatarFile) {
-      const path = `avatars/${userId}`;
-      const { error: upErr } = await supabase.storage.from('tenant-files').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type });
-      console.log('[avatar] upload error:', upErr);
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('tenant-files').getPublicUrl(path);
-        avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
-        console.log('[avatar] public url:', avatar_url);
-      }
-    }
-
+    const avatar_url = avatarFile || profile.avatar_url || '';
     const { error: dbErr } = await supabase.from('profiles').upsert({ id: userId, username: editName.trim(), avatar_url }, { onConflict: 'id' });
-    console.log('[avatar] db upsert error:', dbErr, 'saved url:', avatar_url);
-    setProfile({ username: editName.trim(), avatar_url });
+    if (!dbErr) setProfile({ username: editName.trim(), avatar_url });
     setSaving(false);
     setShowProfileModal(false);
   };
