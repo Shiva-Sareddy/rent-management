@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen, closeSidebar }) {
       }
     }
 
-    const { error: dbErr } = await supabase.from('profiles').upsert({ id: userId, username: editName.trim(), avatar_url });
+    const { error: dbErr } = await supabase.from('profiles').upsert({ id: userId, username: editName.trim(), avatar_url }, { onConflict: 'id' });
     console.log('[avatar] db upsert error:', dbErr, 'saved url:', avatar_url);
     setProfile({ username: editName.trim(), avatar_url });
     setSaving(false);
