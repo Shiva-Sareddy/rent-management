@@ -174,27 +174,56 @@ export default function Notes() {
             <p className="text-sm font-medium">No notes found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filtered.map((note, idx) => {
               const s = STATUS[note.status] || STATUS['Not Opened']
               return (
                 <motion.div key={note.id}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-                  onClick={() => setSelected(note)}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all">
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-[5px] w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-[15px] font-semibold text-gray-900 dark:text-gray-100 leading-snug">{note.title}</p>
-                        <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap ${s.badge}`}>{note.status}</span>
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all duration-300">
+                  <div className="p-5">
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0 pr-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
+                          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Issue</span>
+                        </div>
+                        <h3 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100 leading-snug">{note.title}</h3>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 leading-relaxed">{note.description}</p>
-                      <div className="flex items-center gap-4 text-[11px] text-gray-400">
-                        <span className="flex items-center gap-1">{Ico.home} {note.house_number}</span>
-                        <span className="flex items-center gap-1">{Ico.cal} {fmtDate(note.raised_on)}</span>
-                        {note.photos?.length > 0 && <span className="flex items-center gap-1">{Ico.photo} {note.photos.length}</span>}
+                      <span className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap ${s.badge}`}>{note.status}</span>
+                    </div>
+
+                    {/* Card Details */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center text-gray-500 dark:text-gray-400">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h10"/></svg>
+                        <span className="text-sm line-clamp-1">{note.description}</span>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                          <svg className="w-4 h-4 mr-2.5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                          <span className="text-sm font-medium">House {note.house_number}</span>
+                        </div>
+                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                          <svg className="w-4 h-4 mr-2 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" strokeWidth="2"/><line x1="8" y1="2" x2="8" y2="6" strokeWidth="2"/><line x1="3" y1="10" x2="21" y2="10" strokeWidth="2"/></svg>
+                          <span className="text-sm">{fmtDate(note.raised_on)}</span>
+                        </div>
+                      </div>
+                      {note.photos?.length > 0 && (
+                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                          <svg className="w-4 h-4 mr-2.5 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth="2"/><circle cx="8.5" cy="8.5" r="1.5" strokeWidth="2"/><polyline points="21 15 16 10 5 21" strokeWidth="2"/></svg>
+                          <span className="text-sm">{note.photos.length} photo{note.photos.length > 1 ? 's' : ''} attached</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+                      <button onClick={() => setSelected(note)}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-xl text-sm font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">
+                        View Details
+                      </button>
                     </div>
                   </div>
                 </motion.div>
