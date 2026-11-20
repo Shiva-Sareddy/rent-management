@@ -54,23 +54,32 @@ export default function Sidebar({ isOpen, closeSidebar }) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef();
 
-  const fetchProfile = (uid) => {
-    supabase.from('profiles').select('username, avatar_url').eq('id', uid).single()
-      .then(({ data }) => { if (data) setProfile(data); });
-  };
-
   useEffect(() => {
+    let channel;
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       setUserId(user.id);
-      fetchProfile(user.id);
+
+      supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single()
+        .then(({ data }) => { if (data) setProfile(data); });
+
       supabase.from('tenants').select('id', { count: 'exact' }).eq('user_id', user.id)
         .then(({ count }) => setTenantCount(count));
 
-      const handleFocus = () => fetchProfile(user.id);
-      window.addEventListener('focus', handleFocus);
-      return () => window.removeEventListener('focus', handleFocus);
+      channel = supabase
+        .channel('profile-changes')
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        }, (payload) => {
+          setProfile(payload.new);
+        })
+        .subscribe();
     });
+
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, []);
 
   const openProfile = () => {
